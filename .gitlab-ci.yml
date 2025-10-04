@@ -1,0 +1,77 @@
+# GitLab CI/CD Pipeline для Dofamine Server
+
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+
+# Кеширование pip зависимостей
+cache:
+  paths:
+    - .cache/pip/
+    - venv/
+
+# Тестирование
+test:
+  stage: test
+  image: python:3.9
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  script:
+    - source venv/bin/activate
+    - python manage.py check
+    - python manage.py test
+  only:
+    - merge_requests
+    - main
+
+# Сборка Docker образа
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+  only:
+    - main
+
+# Развертывание на сервер
+deploy:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+  script:
+    - ssh $SSH_USER@$SERVER_HOST "cd /opt/dofamine-server && git pull origin main"
+    - ssh $SSH_USER@$SERVER_HOST "cd /opt/dofamine-server && docker-compose down"
+    - ssh $SSH_USER@$SERVER_HOST "cd /opt/dofamine-server && docker-compose pull"
+    - ssh $SSH_USER@$SERVER_HOST "cd /opt/dofamine-server && docker-compose up -d"
+    - ssh $SSH_USER@$SERVER_HOST "cd /opt/dofamine-server && docker-compose exec web python manage.py migrate"
+    - ssh $SSH_USER@$SERVER_HOST "cd /opt/dofamine-server && docker-compose exec web python manage.py collectstatic --noinput"
+  only:
+    - main
+  when: manual
+
+# Переменные окружения для деплоя (настройте в GitLab CI/CD Settings)
+# SSH_PRIVATE_KEY - приватный SSH ключ для доступа к серверу
+# SSH_USER - пользователь для SSH подключения
+# SERVER_HOST - IP адрес или домен сервера
