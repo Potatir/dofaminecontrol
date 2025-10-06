@@ -176,58 +176,50 @@ class SmsVerifyCodeView(generics.GenericAPIView):
     def post(self, request):
         phone_number = request.data.get('phone_number')
         code = request.data.get('code')
-        
+
         if not phone_number or not code:
             return Response({'error': 'Phone number and code are required'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Проверяем код (заглушка - принимаем любой код)
-        if code != '8554':
+
+        # Строгое сравнение с тестовым кодом
+        if str(code) != '8554':
             return Response({'error': 'Invalid code'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Ищем существующего пользователя
+
+        # Нормализуем номер (уберем пробелы)
+        phone_number = phone_number.strip()
+
+        # Логика входа/регистрации
         try:
             user = User.objects.get(phone_number=phone_number)
-            # Пользователь найден - вход
-            print(f"DEBUG: User found for phone {phone_number}, returning 200")
-            from rest_framework_simplejwt.tokens import RefreshToken
-            refresh = RefreshToken.for_user(user)
-            
-            return Response({
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'phone_number': user.phone_number,
-                    'email': user.email,
-                },
-                '_isNewUser': False
-            }, status=status.HTTP_200_OK)
-            
+            is_new = False
         except User.DoesNotExist:
-            # Пользователь не найден - регистрация
-            print(f"DEBUG: User not found for phone {phone_number}, creating new user")
-            username = f"user_{phone_number}"  # Генерируем уникальный username
+            username = f"user_{phone_number}"
+            # На случай коллизии username
+            base_username = username
+            suffix = 1
+            while User.objects.filter(username=username).exists():
+                suffix += 1
+                username = f"{base_username}_{suffix}"
             user = User.objects.create_user(
                 username=username,
                 phone_number=phone_number,
-                password='',  # Без пароля для SMS входа
+                password='dummy_password_for_sms_user',  # безопасная заглушка
             )
-            
-            from rest_framework_simplejwt.tokens import RefreshToken
-            refresh = RefreshToken.for_user(user)
-            
-            return Response({
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'phone_number': user.phone_number,
-                    'email': user.email,
-                },
-                '_isNewUser': True
-            }, status=status.HTTP_201_CREATED)
+            is_new = True
+
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'phone_number': user.phone_number,
+                'email': user.email,
+            },
+            '_isNewUser': is_new
+        }, status=status.HTTP_201_CREATED if is_new else status.HTTP_200_OK)
 
 # Delete account view
 class DeleteAccountView(generics.GenericAPIView):

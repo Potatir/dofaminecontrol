@@ -25,16 +25,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-uujh2!=8^m$(vpd*l(n*pbpx8w)(9g@ym^!wjte674e5^#hq*#'
+SECRET_KEY = os.getenv('SECRET_KEY', 'dev-insecure-secret-key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    '10.0.2.2',  # Android emulator loopback to host
-]
+# ALLOWED_HOSTS from env (comma-separated), default allow all for dev
+_allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '*')
+ALLOWED_HOSTS = (
+    ['*'] if _allowed_hosts_env.strip() in ('*', '') else [h.strip() for h in _allowed_hosts_env.split(',')]
+)
 
 
 # Application definition
@@ -87,21 +87,23 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 # Switchable via environment variables; falls back to SQLite for local/dev
 
-POSTGRES_NAME = os.getenv('POSTGRES_DB')
-POSTGRES_USER = os.getenv('POSTGRES_USER')
-POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD')
-POSTGRES_HOST = os.getenv('POSTGRES_HOST', 'localhost')
-POSTGRES_PORT = os.getenv('POSTGRES_PORT', '5432')
+# Support both DB_* and POSTGRES_* env variable conventions
+DB_ENGINE = os.getenv('DB_ENGINE') or 'django.db.backends.postgresql'
+DB_NAME = os.getenv('DB_NAME') or os.getenv('POSTGRES_DB')
+DB_USER = os.getenv('DB_USER') or os.getenv('POSTGRES_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD') or os.getenv('POSTGRES_PASSWORD')
+DB_HOST = os.getenv('DB_HOST') or os.getenv('POSTGRES_HOST', 'localhost')
+DB_PORT = os.getenv('DB_PORT') or os.getenv('POSTGRES_PORT', '5432')
 
-if POSTGRES_NAME and POSTGRES_USER and POSTGRES_PASSWORD:
+if DB_ENGINE == 'django.db.backends.postgresql' and DB_NAME and DB_USER and DB_PASSWORD:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': POSTGRES_NAME,
-            'USER': POSTGRES_USER,
-            'PASSWORD': POSTGRES_PASSWORD,
-            'HOST': POSTGRES_HOST,
-            'PORT': POSTGRES_PORT,
+            'ENGINE': DB_ENGINE,
+            'NAME': DB_NAME,
+            'USER': DB_USER,
+            'PASSWORD': DB_PASSWORD,
+            'HOST': DB_HOST,
+            'PORT': DB_PORT,
         }
     }
 else:
