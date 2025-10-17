@@ -7,6 +7,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.conf import settings
 from .models import User, Habit, DailyNote, AppUsage, ChatSession, ChatMessage, ChatAttachment, DailyTimeline, App, AppUsageRecord, UserTestResult, Achievement, AchievementStats
 from .serializers import (
     RegisterSerializer, CustomTokenObtainPairSerializer, HabitSerializer, 
@@ -17,6 +18,7 @@ from .serializers import (
     AchievementStatsSerializer
 )
 from .services import ChatGPTService, FileUploadService
+from .twilio_service import TwilioSMSService
 
 User = get_user_model()
 
@@ -161,14 +163,21 @@ class SmsRequestCodeView(generics.GenericAPIView):
         if not phone_number:
             return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # TODO: Реальная отправка SMS через SMTP сервер
-        # Пока что просто возвращаем успех
-        print(f"SMS код отправлен на номер: {phone_number}")
+        # Отправляем SMS через Twilio
+        twilio_service = TwilioSMSService()
+        result = twilio_service.send_verification_code(phone_number)
         
-        return Response({
-            'message': 'SMS code sent',
-            'phone_number': phone_number
-        }, status=status.HTTP_200_OK)
+        if result['success']:
+            return Response({
+                'message': result['message'],
+                'phone_number': phone_number,
+                # В debug режиме возвращаем код для тестирования
+                'debug_code': result.get('code') if settings.DEBUG else None
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'error': result['message']
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class SmsVerifyCodeView(generics.GenericAPIView):
     permission_classes = [AllowAny]
@@ -180,9 +189,10 @@ class SmsVerifyCodeView(generics.GenericAPIView):
         if not phone_number or not code:
             return Response({'error': 'Phone number and code are required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Строгое сравнение с тестовым кодом
-        if str(code) != '8554':
-            return Response({'error': 'Invalid code'}, status=status.HTTP_400_BAD_REQUEST)
+        # Проверяем код через Twilio сервис
+        twilio_service = TwilioSMSService()
+        if not twilio_service.verify_code(phone_number, code):
+            return Response({'error': 'Invalid or expired code'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Нормализуем номер (уберем пробелы)
         phone_number = phone_number.strip()
@@ -366,6 +376,76 @@ class SocialLoginStubView(generics.GenericAPIView):
                     'last_name': user.last_name,
                 }
             }, status=status.HTTP_201_CREATED)
+
+
+class FirebasePhoneLoginView(generics.GenericAPIView):
+    """Аутентификация через Firebase Phone Auth"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        phone_number = request.data.get('phone_number')
+        firebase_id_token = request.data.get('firebase_id_token')
+        
+        if not phone_number or not firebase_id_token:
+            return Response({
+                'error': 'phone_number and firebase_id_token are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Инициализируем Firebase сервис
+            firebase_service = FirebaseAuthService()
+            
+            # Проверяем Firebase токен
+            firebase_user_data = firebase_service.verify_phone_number_token(firebase_id_token)
+            
+            # Проверяем, что номер телефона в токене совпадает с переданным
+            if firebase_user_data['phone_number'] != phone_number:
+                return Response({
+                    'error': 'Phone number mismatch'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Создаем или находим пользователя
+            firebase_uid = firebase_user_data['uid']
+            username = f"firebase_{firebase_uid}"
+            
+            try:
+                user = User.objects.get(username=username)
+                # Обновляем номер телефона если изменился
+                if user.phone_number != phone_number:
+                    user.phone_number = phone_number
+                    user.save()
+            except User.DoesNotExist:
+                # Создаем нового пользователя
+                user = User.objects.create_user(
+                    username=username,
+                    phone_number=phone_number,
+                    email=firebase_user_data.get('email', ''),
+                    first_name=firebase_user_data.get('name', '').split(' ')[0] if firebase_user_data.get('name') else '',
+                    last_name=' '.join(firebase_user_data.get('name', '').split(' ')[1:]) if firebase_user_data.get('name') else '',
+                )
+            
+            # Генерируем JWT токены
+            from rest_framework_simplejwt.tokens import RefreshToken
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'phone_number': user.phone_number,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'is_new_user': False,  # Всегда False для Firebase, так как пользователь уже верифицирован
+                }
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': f'Firebase authentication failed: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 # Daily Notes Views

@@ -8,6 +8,7 @@ from .views import (
     SmsRequestCodeView,
     SmsVerifyCodeView,
     SocialLoginStubView,
+    FirebasePhoneLoginView,
     DeleteAccountView,
     TestResultView,
     HabitListCreateView,
@@ -52,6 +53,8 @@ urlpatterns = [
     # Social authentication
     path('auth/google/', SocialLoginStubView.as_view(), name='auth-google'),
     path('auth/social/<str:provider>/', SocialLoginStubView.as_view(), name='auth-social-stub'),
+    # Firebase Phone Authentication
+    path('auth/firebase/phone/', FirebasePhoneLoginView.as_view(), name='auth-firebase-phone'),
     # Delete account
     path('auth/delete-account/', DeleteAccountView.as_view(), name='auth-delete-account'),
     # Test results

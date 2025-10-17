@@ -160,7 +160,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.User'
 
 # OpenAI API Key
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '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')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 
 # Media files
 MEDIA_URL = '/media/'
@@ -186,3 +186,13 @@ SIMPLE_JWT = {
 
 # CORS (allow all in dev; tighten in prod)
 CORS_ALLOW_ALL_ORIGINS = True
+
+# Firebase Configuration
+FIREBASE_CREDENTIALS = os.path.join(BASE_DIR, 'firebase-service-account.json')
+
+# Проверяем, существует ли файл с ключами Firebase
+if not os.path.exists(FIREBASE_CREDENTIALS):
+    print(f"⚠️  WARNING: Firebase credentials file not found at {FIREBASE_CREDENTIALS}")
+    print("   Please download the service account JSON from Firebase Console")
+    print("   and place it in the server/ directory")
+    FIREBASE_CREDENTIALS = None

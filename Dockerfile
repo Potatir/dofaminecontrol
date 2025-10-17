@@ -34,3 +34,5 @@ ENV DJANGO_SETTINGS_MODULE=core.settings
 
 # Команда по умолчанию
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "core.wsgi:application"]
+
+

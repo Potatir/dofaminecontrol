@@ -11,3 +11,5 @@ echo User: %POSTGRES_USER%
 echo Host: %POSTGRES_HOST%:%POSTGRES_PORT%
 
 .venv\Scripts\python manage.py runserver
+
+

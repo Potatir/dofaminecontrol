@@ -131,3 +131,5 @@ docker-compose restart
 # Обновление и перезапуск
 docker-compose pull && docker-compose up -d
 ```
+
+
