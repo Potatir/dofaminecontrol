@@ -22,6 +22,7 @@ class TwilioSMSService:
             self.client = None
         else:
             self.client = Client(self.account_sid, self.auth_token)
+            logger.info(f"Twilio client initialized with Account SID: {self.account_sid[:10]}...")
     
     def generate_verification_code(self):
         """Генерирует 6-значный код подтверждения"""
@@ -88,6 +89,9 @@ class TwilioSMSService:
                 }
             
             # Отправляем верификацию через Twilio Verify API
+            logger.info(f"Отправка verification через Twilio API для {normalized_phone}")
+            logger.info(f"Service SID: {self.verify_service_sid}")
+            
             verification = self.client.verify \
                 .v2 \
                 .services(self.verify_service_sid) \
