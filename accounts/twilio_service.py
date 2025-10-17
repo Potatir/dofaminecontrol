@@ -92,11 +92,10 @@ class TwilioSMSService:
             logger.info(f"Отправка verification через Twilio API для {normalized_phone}")
             logger.info(f"Service SID: {self.verify_service_sid}")
             
-            verification = self.client.verify \
-                .v2 \
-                .services(self.verify_service_sid) \
-                .verifications \
-                .create(to=normalized_phone, channel='sms')
+            verification = self.client.verify.v2.services(self.verify_service_sid).verifications.create(
+                to=normalized_phone, 
+                channel='sms'
+            )
             
             logger.info(f"Verification отправлена на {normalized_phone}. Status: {verification.status}")
             
@@ -153,11 +152,10 @@ class TwilioSMSService:
                 return False
             
             # Проверяем код через Twilio Verify API
-            verification_check = self.client.verify \
-                .v2 \
-                .services(self.verify_service_sid) \
-                .verification_checks \
-                .create(to=normalized_phone, code=code)
+            verification_check = self.client.verify.v2.services(self.verify_service_sid).verification_checks.create(
+                to=normalized_phone, 
+                code=code
+            )
             
             logger.info(f"Verification check для {normalized_phone}. Status: {verification_check.status}")
             
