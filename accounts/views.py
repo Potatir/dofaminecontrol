@@ -228,7 +228,7 @@ class SmsVerifyCodeView(generics.GenericAPIView):
                 'phone_number': user.phone_number,
                 'email': user.email,
             },
-            '_isNewUser': is_new
+            'isNewUser': is_new
         }, status=status.HTTP_201_CREATED if is_new else status.HTTP_200_OK)
 
 # Delete account view
