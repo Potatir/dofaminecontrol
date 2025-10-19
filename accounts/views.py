@@ -190,9 +190,12 @@ class SmsVerifyCodeView(generics.GenericAPIView):
             return Response({'error': 'Phone number and code are required'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Проверяем код через Twilio сервис
-        twilio_service = TwilioSMSService()
-        if not twilio_service.verify_code(phone_number, code):
-            return Response({'error': 'Invalid or expired code'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            twilio_service = TwilioSMSService()
+            if not twilio_service.verify_code(phone_number, code):
+                return Response({'error': 'Invalid or expired code'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': f'Verification failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # Нормализуем номер (уберем пробелы)
         phone_number = phone_number.strip()
@@ -215,21 +218,26 @@ class SmsVerifyCodeView(generics.GenericAPIView):
                 password='dummy_password_for_sms_user',  # безопасная заглушка
             )
             is_new = True
+        except Exception as e:
+            return Response({'error': f'Database error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        from rest_framework_simplejwt.tokens import RefreshToken
-        refresh = RefreshToken.for_user(user)
+        try:
+            from rest_framework_simplejwt.tokens import RefreshToken
+            refresh = RefreshToken.for_user(user)
 
-        return Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'phone_number': user.phone_number,
-                'email': user.email,
-            },
-            'isNewUser': is_new
-        }, status=status.HTTP_201_CREATED if is_new else status.HTTP_200_OK)
+            return Response({
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'phone_number': user.phone_number,
+                    'email': user.email,
+                },
+                'isNewUser': is_new
+            }, status=status.HTTP_201_CREATED if is_new else status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': f'Token generation error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Delete account view
 class DeleteAccountView(generics.GenericAPIView):
