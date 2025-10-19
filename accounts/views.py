@@ -208,9 +208,6 @@ class SmsVerifyCodeView(generics.GenericAPIView):
             except Exception as e:
                 logger.error(f"Twilio verification error for {phone_number}: {str(e)}")
                 return Response({'error': f'Verification failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except Exception as e:
-            logger.error(f"Unexpected error in SMS verification: {str(e)}")
-            return Response({'error': f'Internal server error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             # Нормализуем номер (уберем пробелы)
             phone_number = phone_number.strip()
@@ -260,6 +257,10 @@ class SmsVerifyCodeView(generics.GenericAPIView):
             except Exception as e:
                 logger.error(f"Token generation error for user {user.username}: {str(e)}")
                 return Response({'error': f'Token generation error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+        except Exception as e:
+            logger.error(f"Unexpected error in SMS verification: {str(e)}")
+            return Response({'error': f'Internal server error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Delete account view
 class DeleteAccountView(generics.GenericAPIView):
