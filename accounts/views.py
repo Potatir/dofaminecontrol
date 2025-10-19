@@ -183,61 +183,83 @@ class SmsVerifyCodeView(generics.GenericAPIView):
     permission_classes = [AllowAny]
     
     def post(self, request):
-        phone_number = request.data.get('phone_number')
-        code = request.data.get('code')
-
-        if not phone_number or not code:
-            return Response({'error': 'Phone number and code are required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Проверяем код через Twilio сервис
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
-            twilio_service = TwilioSMSService()
-            if not twilio_service.verify_code(phone_number, code):
-                return Response({'error': 'Invalid or expired code'}, status=status.HTTP_400_BAD_REQUEST)
+            phone_number = request.data.get('phone_number')
+            code = request.data.get('code')
+            
+            logger.info(f"SMS verification attempt for phone: {phone_number}, code: {code}")
+
+            if not phone_number or not code:
+                logger.warning(f"Missing phone_number or code: phone={phone_number}, code={code}")
+                return Response({'error': 'Phone number and code are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверяем код через Twilio сервис
+            try:
+                twilio_service = TwilioSMSService()
+                verification_result = twilio_service.verify_code(phone_number, code)
+                logger.info(f"Twilio verification result for {phone_number}: {verification_result}")
+                
+                if not verification_result:
+                    logger.warning(f"Invalid or expired code for {phone_number}")
+                    return Response({'error': 'Invalid or expired code'}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                logger.error(f"Twilio verification error for {phone_number}: {str(e)}")
+                return Response({'error': f'Verification failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
-            return Response({'error': f'Verification failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"Unexpected error in SMS verification: {str(e)}")
+            return Response({'error': f'Internal server error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Нормализуем номер (уберем пробелы)
-        phone_number = phone_number.strip()
+            # Нормализуем номер (уберем пробелы)
+            phone_number = phone_number.strip()
+            logger.info(f"Normalized phone number: {phone_number}")
 
-        # Логика входа/регистрации
-        try:
-            user = User.objects.get(phone_number=phone_number)
-            is_new = False
-        except User.DoesNotExist:
-            username = f"user_{phone_number}"
-            # На случай коллизии username
-            base_username = username
-            suffix = 1
-            while User.objects.filter(username=username).exists():
-                suffix += 1
-                username = f"{base_username}_{suffix}"
-            user = User.objects.create_user(
-                username=username,
-                phone_number=phone_number,
-                password='dummy_password_for_sms_user',  # безопасная заглушка
-            )
-            is_new = True
-        except Exception as e:
-            return Response({'error': f'Database error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Логика входа/регистрации
+            try:
+                user = User.objects.get(phone_number=phone_number)
+                is_new = False
+                logger.info(f"Existing user found: {user.username}")
+            except User.DoesNotExist:
+                username = f"user_{phone_number}"
+                # На случай коллизии username
+                base_username = username
+                suffix = 1
+                while User.objects.filter(username=username).exists():
+                    suffix += 1
+                    username = f"{base_username}_{suffix}"
+                user = User.objects.create_user(
+                    username=username,
+                    phone_number=phone_number,
+                    password='dummy_password_for_sms_user',  # безопасная заглушка
+                )
+                is_new = True
+                logger.info(f"New user created: {username}")
+            except Exception as e:
+                logger.error(f"Database error during user lookup/creation: {str(e)}")
+                return Response({'error': f'Database error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        try:
-            from rest_framework_simplejwt.tokens import RefreshToken
-            refresh = RefreshToken.for_user(user)
+            try:
+                from rest_framework_simplejwt.tokens import RefreshToken
+                refresh = RefreshToken.for_user(user)
+                
+                logger.info(f"Tokens generated successfully for user: {user.username}")
 
-            return Response({
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'phone_number': user.phone_number,
-                    'email': user.email,
-                },
-                'isNewUser': is_new
-            }, status=status.HTTP_201_CREATED if is_new else status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': f'Token generation error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                    'user': {
+                        'id': user.id,
+                        'username': user.username,
+                        'phone_number': user.phone_number,
+                        'email': user.email,
+                    },
+                    'isNewUser': is_new
+                }, status=status.HTTP_201_CREATED if is_new else status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f"Token generation error for user {user.username}: {str(e)}")
+                return Response({'error': f'Token generation error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Delete account view
 class DeleteAccountView(generics.GenericAPIView):

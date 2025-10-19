@@ -164,6 +164,8 @@ class TwilioSMSService:
             
         except Exception as e:
             logger.error(f"Ошибка проверки кода для {phone_number}: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            logger.error(f"Exception details: {str(e)}")
             return False
     
     def clear_code(self, phone_number):
