@@ -147,9 +147,9 @@ class TwilioSMSService:
                     cache.delete(cache_key)
                     logger.info(f"Debug код успешно проверен для {normalized_phone}")
                     return True
-                
-                logger.warning(f"Неверный debug код для {normalized_phone}")
-                return False
+                else:
+                    logger.warning(f"Неверный debug код для {normalized_phone}")
+                    return False
             
             # Проверяем код через Twilio Verify API
             verification_check = self.client.verify.v2.services(self.verify_service_sid).verification_checks.create(
