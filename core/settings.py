@@ -30,6 +30,30 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'dev-insecure-secret-key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
+# Настройки для обработки ошибок в API
+REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'core.settings.custom_exception_handler',
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+}
+
+# Глобальная обработка ошибок для API
+def custom_exception_handler(exc, context):
+    from rest_framework.views import exception_handler
+    from rest_framework.response import Response
+    
+    response = exception_handler(exc, context)
+    
+    if response is not None:
+        custom_response_data = {
+            'error': 'Internal server error',
+            'detail': str(exc) if DEBUG else 'An error occurred'
+        }
+        response.data = custom_response_data
+    
+    return response
+
 # ALLOWED_HOSTS from env (comma-separated), default allow all for dev
 _allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '*')
 ALLOWED_HOSTS = (
