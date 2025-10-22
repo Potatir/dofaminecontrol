@@ -193,6 +193,10 @@ P1SMS_API_KEY = os.getenv('P1SMS_API_KEY', '')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = '/app/media'
 
+# Static files
+STATIC_URL = '/static/'
+STATIC_ROOT = '/app/staticfiles'
+
 # Django REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (

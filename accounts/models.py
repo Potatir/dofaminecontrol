@@ -6,7 +6,7 @@ from django.utils import timezone
 class User(AbstractUser):
     email = models.EmailField(blank=True, null=True)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
-    avatar = models.ImageField(upload_to='avatars/%Y/%m/%d/', null=True, blank=True)
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     
     # Подписка
     has_subscription = models.BooleanField(default=False)
