@@ -163,21 +163,29 @@ class SmsRequestCodeView(generics.GenericAPIView):
         if not phone_number:
             return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Отправляем SMS через P1SMS
-        p1sms_service = P1SMSService()
-        result = p1sms_service.send_verification_code(phone_number)
+        # ВРЕМЕННО: Закомментировано для тестирования
+        # # Отправляем SMS через P1SMS
+        # p1sms_service = P1SMSService()
+        # result = p1sms_service.send_verification_code(phone_number)
+        # 
+        # if result['success']:
+        #     return Response({
+        #         'message': result['message'],
+        #         'phone_number': phone_number,
+        #         # В debug режиме возвращаем код для тестирования
+        #         'debug_code': result.get('code') if settings.DEBUG else None
+        #     }, status=status.HTTP_200_OK)
+        # else:
+        #     return Response({
+        #         'error': result['message']
+        #     }, status=status.HTTP_400_BAD_REQUEST)
         
-        if result['success']:
-            return Response({
-                'message': result['message'],
-                'phone_number': phone_number,
-                # В debug режиме возвращаем код для тестирования
-                'debug_code': result.get('code') if settings.DEBUG else None
-            }, status=status.HTTP_200_OK)
-        else:
-            return Response({
-                'error': result['message']
-            }, status=status.HTTP_400_BAD_REQUEST)
+        # ВРЕМЕННО: Возвращаем успех без отправки SMS
+        return Response({
+            'message': 'SMS код отправлен успешно (в разработке)',
+            'phone_number': phone_number,
+            'debug_code': '123456'  # Фиксированный код для тестирования
+        }, status=status.HTTP_200_OK)
 
 class SmsVerifyCodeView(generics.GenericAPIView):
     permission_classes = [AllowAny]
