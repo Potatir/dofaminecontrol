@@ -28,8 +28,9 @@ services:
     volumes:
       - ./media:/app/media
       - ./staticfiles:/app/staticfiles
-    ports:
-      - "8000:8000"
+    # Убираем экспозицию порта - все запросы должны идти через nginx
+    # ports:
+    #   - "8000:8000"
     environment:
       - DEBUG=False
       - DB_ENGINE=django.db.backends.postgresql
