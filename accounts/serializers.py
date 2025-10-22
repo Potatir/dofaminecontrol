@@ -22,7 +22,10 @@ class UserSerializer(serializers.ModelSerializer):
 	def get_avatar_url(self, obj):
 		if obj.avatar:
 			# Формируем правильный URL для nginx
-			return f'http://147.45.214.86:8080{obj.avatar.url}'
+			# obj.avatar.url возвращает /media/avatars/filename.jpg
+			# Нужно заменить /media на пустую строку
+			avatar_path = obj.avatar.url.replace('/media', '')
+			return f'http://147.45.214.86:8080{avatar_path}'
 		return None
 	
 	def get_level(self, obj):
