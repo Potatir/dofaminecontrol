@@ -19,6 +19,7 @@ class Command(BaseCommand):
         users_with_avatars = User.objects.exclude(avatar='')
         self.stdout.write(f'Найдено пользователей с аватарками: {users_with_avatars.count()}')
         
+        cleaned_count = 0
         for user in users_with_avatars:
             if user.avatar:
                 avatar_path = os.path.join(settings.MEDIA_ROOT, str(user.avatar))
@@ -29,6 +30,16 @@ class Command(BaseCommand):
                     # Очищаем поле avatar если файл не существует
                     user.avatar = ''
                     user.save()
+                    cleaned_count += 1
                     self.stdout.write(f'  Очищено поле avatar для пользователя {user.username}')
         
-        self.stdout.write('Проверка завершена!')
+        # Показываем статистику файлов в папке
+        if os.path.exists(avatars_dir):
+            files_in_dir = os.listdir(avatars_dir)
+            self.stdout.write(f'Файлов в папке avatars: {len(files_in_dir)}')
+            for file in files_in_dir[:5]:  # Показываем первые 5 файлов
+                self.stdout.write(f'  - {file}')
+            if len(files_in_dir) > 5:
+                self.stdout.write(f'  ... и еще {len(files_in_dir) - 5} файлов')
+        
+        self.stdout.write(f'Проверка завершена! Очищено записей: {cleaned_count}')

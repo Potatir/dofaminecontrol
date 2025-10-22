@@ -946,6 +946,13 @@ class UserAvatarView(APIView):
         """Загрузить аватарку пользователя"""
         try:
             user = request.user
+            import os
+            from django.conf import settings
+            
+            # Сохраняем путь к старому файлу для удаления
+            old_avatar_path = None
+            if user.avatar:
+                old_avatar_path = os.path.join(settings.MEDIA_ROOT, str(user.avatar))
             
             # Проверяем, есть ли файл в FILES (обычная загрузка)
             if 'avatar' in request.FILES:
@@ -980,11 +987,17 @@ class UserAvatarView(APIView):
             
             # Проверяем, что файл действительно сохранился
             if user.avatar:
-                import os
-                from django.conf import settings
                 avatar_path = os.path.join(settings.MEDIA_ROOT, str(user.avatar))
                 if not os.path.exists(avatar_path):
                     return Response({'error': 'Failed to save avatar file'}, status=500)
+            
+            # Удаляем старый файл если он существует
+            if old_avatar_path and os.path.exists(old_avatar_path):
+                try:
+                    os.remove(old_avatar_path)
+                    print(f"DEBUG: Удален старый файл аватарки: {old_avatar_path}")
+                except Exception as e:
+                    print(f"DEBUG: Ошибка удаления старого файла: {e}")
             
             from .serializers import UserSerializer
             serializer = UserSerializer(user, context={'request': request})
