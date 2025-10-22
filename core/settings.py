@@ -186,6 +186,9 @@ AUTH_USER_MODEL = 'accounts.User'
 # OpenAI API Key
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 
+# P1SMS Configuration
+P1SMS_API_KEY = os.getenv('P1SMS_API_KEY', '')
+
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
