@@ -24,11 +24,10 @@ services:
   # Django Web Application
   web:
     build: .
-    command: sh -c "mkdir -p /app/media/avatars && chmod -R 755 /app/media && gunicorn --bind 0.0.0.0:8000 --workers 3 core.wsgi:application"
+    command: gunicorn --bind 0.0.0.0:8000 --workers 3 core.wsgi:application
     volumes:
       - ./media:/app/media
       - ./staticfiles:/app/staticfiles
-    user: "1000:1000"  # Используем пользователя с правами на запись
     ports:
       - "8000:8000"
     environment:
