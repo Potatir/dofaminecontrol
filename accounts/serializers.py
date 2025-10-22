@@ -26,11 +26,16 @@ class UserSerializer(serializers.ModelSerializer):
 			if request:
 				# Убираем начальный слеш для правильного формирования URL
 				avatar_path = obj.avatar.url.lstrip('/')
-				return request.build_absolute_uri(f'/{avatar_path}')
+				url = request.build_absolute_uri(f'/{avatar_path}')
+				print(f"DEBUG: Generated avatar URL with request: {url}")
+				return url
 			else:
 				# Fallback для случаев без request context
 				avatar_path = obj.avatar.url.lstrip('/')
-				return f'http://147.45.214.86:8080/{avatar_path}'
+				url = f'http://147.45.214.86:8080/{avatar_path}'
+				print(f"DEBUG: Generated avatar URL without request: {url}")
+				return url
+		print(f"DEBUG: No avatar for user {obj.username}")
 		return None
 	
 	def get_level(self, obj):
