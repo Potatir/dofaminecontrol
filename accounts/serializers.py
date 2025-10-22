@@ -24,10 +24,13 @@ class UserSerializer(serializers.ModelSerializer):
 			# Формируем правильный URL для nginx
 			request = self.context.get('request')
 			if request:
-				return request.build_absolute_uri(obj.avatar.url)
+				# Убираем начальный слеш для правильного формирования URL
+				avatar_path = obj.avatar.url.lstrip('/')
+				return request.build_absolute_uri(f'/{avatar_path}')
 			else:
 				# Fallback для случаев без request context
-				return f'http://147.45.214.86:8080{obj.avatar.url}'
+				avatar_path = obj.avatar.url.lstrip('/')
+				return f'http://147.45.214.86:8080/{avatar_path}'
 		return None
 	
 	def get_level(self, obj):
