@@ -954,6 +954,7 @@ class UserAvatarView(APIView):
             elif 'avatar' in request.data and isinstance(request.data['avatar'], str):
                 import base64
                 from django.core.files.base import ContentFile
+                import uuid
                 
                 avatar_data = request.data['avatar']
                 if avatar_data.startswith('data:image'):
@@ -964,8 +965,11 @@ class UserAvatarView(APIView):
                     # Декодируем base64
                     data = base64.b64decode(imgstr)
                     
+                    # Создаем уникальное имя файла
+                    filename = f'avatar_{uuid.uuid4().hex[:8]}.{ext}'
+                    
                     # Создаем файл
-                    avatar_file = ContentFile(data, name=f'avatar.{ext}')
+                    avatar_file = ContentFile(data, name=filename)
                     user.avatar = avatar_file
                 else:
                     return Response({'error': 'Invalid avatar format'}, status=400)
@@ -973,6 +977,14 @@ class UserAvatarView(APIView):
                 return Response({'error': 'No avatar file provided'}, status=400)
             
             user.save()
+            
+            # Проверяем, что файл действительно сохранился
+            if user.avatar:
+                import os
+                from django.conf import settings
+                avatar_path = os.path.join(settings.MEDIA_ROOT, str(user.avatar))
+                if not os.path.exists(avatar_path):
+                    return Response({'error': 'Failed to save avatar file'}, status=500)
             
             from .serializers import UserSerializer
             serializer = UserSerializer(user, context={'request': request})
