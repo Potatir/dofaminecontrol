@@ -22,7 +22,12 @@ class UserSerializer(serializers.ModelSerializer):
 	def get_avatar_url(self, obj):
 		if obj.avatar:
 			# Формируем правильный URL для nginx
-			return f'http://147.45.214.86:8080{obj.avatar.url}'
+			request = self.context.get('request')
+			if request:
+				return request.build_absolute_uri(obj.avatar.url)
+			else:
+				# Fallback для случаев без request context
+				return f'http://147.45.214.86:8080{obj.avatar.url}'
 		return None
 	
 	def get_level(self, obj):
@@ -319,7 +324,11 @@ class AchievementStatsSerializer(serializers.ModelSerializer):
 		read_only_fields = ['last_sync_date', 'created_at']
 	
 	def create(self, validated_data):
-		validated_data['user'] = self.context['request'].user
+		request = self.context.get('request')
+		if not request or not request.user:
+			raise serializers.ValidationError("Request context is required")
+		
+		validated_data['user'] = request.user
 		# Получаем или создаем статистику для пользователя
 		stats, created = AchievementStats.objects.get_or_create(
 			user=validated_data['user'],
