@@ -9,3 +9,6 @@ echo ""
 
 # Мониторим логи Django в реальном времени
 docker-compose logs -f web
+
+
+

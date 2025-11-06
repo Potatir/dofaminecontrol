@@ -196,34 +196,57 @@ class SmsVerifyCodeView(generics.GenericAPIView):
         
         try:
             phone_number = request.data.get('phone_number')
-            code = request.data.get('code')
+            firebase_id_token = request.data.get('firebase_id_token')
             
-            logger.info(f"SMS verification attempt for phone: {phone_number}, code: {code}")
+            logger.info(f"Firebase verification attempt for phone: {phone_number}")
 
-            if not phone_number or not code:
-                logger.warning(f"Missing phone_number or code: phone={phone_number}, code={code}")
-                return Response({'error': 'Phone number and code are required'}, status=status.HTTP_400_BAD_REQUEST)
+            if not phone_number:
+                logger.warning(f"Missing phone_number: phone={phone_number}")
+                return Response({'error': 'Phone number is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if not firebase_id_token:
+                logger.warning(f"Missing firebase_id_token for phone: {phone_number}")
+                return Response({'error': 'Firebase ID token is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # ВРЕМЕННО: Закомментировано для тестирования
-            # Проверяем код через P1SMS сервис
-            # try:
-            #     p1sms_service = P1SMSService()
-            #     verification_result = p1sms_service.verify_code(phone_number, code)
-            #     logger.info(f"P1SMS verification result for {phone_number}: {verification_result}")
-            #     
-            #     if not verification_result:
-            #         logger.warning(f"Invalid or expired code for {phone_number}")
-            #         return Response({'error': 'Invalid or expired code'}, status=status.HTTP_400_BAD_REQUEST)
-            # except Exception as e:
-            #     logger.error(f"P1SMS verification error for {phone_number}: {str(e)}")
-            #     return Response({'error': f'Verification failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Проверяем Firebase ID token
+            try:
+                from .firebase_auth_service import FirebaseAuthService
+                firebase_service = FirebaseAuthService()
+                decoded_token = firebase_service.verify_id_token(firebase_id_token)
+                
+                logger.info(f"Firebase token verified successfully for phone: {phone_number}")
+                
+                # Получаем номер телефона из Firebase token
+                firebase_phone = decoded_token.get('phone_number')
+                if not firebase_phone:
+                    logger.warning(f"Phone number not found in Firebase token for phone: {phone_number}")
+                    return Response({'error': 'Phone number not found in Firebase token'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Нормализуем номер из Firebase (формат +7XXXXXXXXXX)
+                firebase_phone_clean = firebase_phone.replace('+', '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+                # Нормализуем номер из запроса
+                phone_number_clean = phone_number.replace('+', '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+                
+                # Если номер из запроса начинается с 8, заменяем на 7
+                if phone_number_clean.startswith('8') and len(phone_number_clean) == 11:
+                    phone_number_clean = '7' + phone_number_clean[1:]
+                
+                # Если номер из запроса имеет 10 цифр, добавляем 7
+                if len(phone_number_clean) == 10:
+                    phone_number_clean = '7' + phone_number_clean
+                
+                # Проверяем что номера совпадают
+                if firebase_phone_clean != phone_number_clean:
+                    logger.warning(f"Phone number mismatch: Firebase={firebase_phone_clean}, Request={phone_number_clean}")
+                    return Response({'error': 'Phone number mismatch'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Используем номер из Firebase для дальнейшей работы
+                phone_number = firebase_phone_clean
+            except Exception as e:
+                logger.error(f"Firebase verification error for {phone_number}: {str(e)}")
+                return Response({'error': f'Firebase verification failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
             
-            # ВРЕМЕННО: Пропускаем проверку кода и создаем пользователя
-            logger.info(f"SmsVerifyCodeView: ВРЕМЕННО - пропускаем проверку кода для {phone_number}")
-            
-            # Нормализуем номер (уберем пробелы)
-            phone_number = phone_number.strip()
-            logger.info(f"Normalized phone number: {phone_number}")
+            logger.info(f"Using normalized phone number: {phone_number}")
 
             # Логика входа/регистрации
             try:

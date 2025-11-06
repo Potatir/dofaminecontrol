@@ -21,3 +21,6 @@ docker-compose exec nginx nginx -t
 
 echo ""
 echo "=== Тест завершен ==="
+
+
+

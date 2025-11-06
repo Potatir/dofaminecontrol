@@ -22,21 +22,7 @@ class UserSerializer(serializers.ModelSerializer):
 	def get_avatar_url(self, obj):
 		if obj.avatar:
 			# Формируем правильный URL для nginx
-			request = self.context.get('request')
-			if request:
-				# Убираем начальный слеш для правильного формирования URL
-				avatar_path = obj.avatar.url.lstrip('/')
-				# Принудительно используем порт 8080 для nginx
-				url = f'http://147.45.214.86:8080/{avatar_path}'
-				print(f"DEBUG: Generated avatar URL with request: {url}")
-				return url
-			else:
-				# Fallback для случаев без request context
-				avatar_path = obj.avatar.url.lstrip('/')
-				url = f'http://147.45.214.86:8080/{avatar_path}'
-				print(f"DEBUG: Generated avatar URL without request: {url}")
-				return url
-		print(f"DEBUG: No avatar for user {obj.username}")
+			return f'http://147.45.214.86:8080{obj.avatar.url}'
 		return None
 	
 	def get_level(self, obj):
@@ -333,11 +319,7 @@ class AchievementStatsSerializer(serializers.ModelSerializer):
 		read_only_fields = ['last_sync_date', 'created_at']
 	
 	def create(self, validated_data):
-		request = self.context.get('request')
-		if not request or not request.user:
-			raise serializers.ValidationError("Request context is required")
-		
-		validated_data['user'] = request.user
+		validated_data['user'] = self.context['request'].user
 		# Получаем или создаем статистику для пользователя
 		stats, created = AchievementStats.objects.get_or_create(
 			user=validated_data['user'],

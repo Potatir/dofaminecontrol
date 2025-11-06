@@ -25,3 +25,4 @@ curl -I http://localhost:8080/media/avatars/avatar_qKI156o.jpg
 
 echo ""
 echo "=== Диагностика завершена ==="
+

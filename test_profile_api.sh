@@ -32,3 +32,6 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 echo ""
 echo "=== Тест завершен ==="
+
+
+

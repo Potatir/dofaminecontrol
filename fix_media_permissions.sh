@@ -20,3 +20,4 @@ echo "Содержимое папки media/avatars:"
 ls -la ./media/avatars/
 
 echo "Проверка завершена!"
+

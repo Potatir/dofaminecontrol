@@ -17,3 +17,6 @@ curl -I http://147.45.214.86:8080/media/avatars/avatar_qKI156o.jpg
 
 echo ""
 echo "=== Тест завершен ==="
+
+
+

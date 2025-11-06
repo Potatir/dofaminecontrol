@@ -30,3 +30,6 @@ for user in users:
 
 echo ""
 echo "=== Отладка завершена ==="
+
+
+

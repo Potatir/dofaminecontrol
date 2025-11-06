@@ -30,3 +30,4 @@ docker-compose exec web python manage.py check_media
 
 echo ""
 echo "=== Исправление завершено ==="
+
