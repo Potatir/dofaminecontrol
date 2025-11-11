@@ -347,6 +347,119 @@ class SmsVerifyCodeView(generics.GenericAPIView):
             logger.error(f"Unexpected error in SMS verification: {str(e)}")
             return Response({'error': f'Internal server error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+class EmailVerifyView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            email = request.data.get('email')
+            firebase_id_token = request.data.get('firebase_id_token')
+            first_name = request.data.get('first_name')
+            last_name = request.data.get('last_name')
+            
+            logger.info(f"Firebase email verification attempt for email: {email}")
+
+            if not email:
+                logger.warning(f"Missing email")
+                return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if not firebase_id_token:
+                logger.warning(f"Missing firebase_id_token for email: {email}")
+                return Response({'error': 'Firebase ID token is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Проверяем Firebase ID token
+            try:
+                from .firebase_auth_service import FirebaseAuthService
+                firebase_service = FirebaseAuthService()
+                decoded_token = firebase_service.verify_id_token(firebase_id_token)
+                
+                logger.info(f"Firebase token verified successfully for email: {email}")
+                
+                # Получаем email из Firebase token
+                firebase_email = decoded_token.get('email')
+                if not firebase_email:
+                    logger.warning(f"Email not found in Firebase token")
+                    return Response({'error': 'Email not found in Firebase token'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Проверяем что email совпадает (case-insensitive)
+                if firebase_email.lower() != email.lower():
+                    logger.warning(f"Email mismatch: Firebase={firebase_email}, Request={email}")
+                    return Response({'error': 'Email mismatch'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Используем email из Firebase для дальнейшей работы
+                email = firebase_email.lower()
+            except Exception as e:
+                logger.error(f"Firebase verification error for {email}: {str(e)}")
+                return Response({'error': f'Firebase verification failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            logger.info(f"Using email: {email}")
+
+            # Логика входа/регистрации
+            try:
+                user = User.objects.filter(email__iexact=email).first()
+                is_new = False
+                if user:
+                    logger.info(f"Existing user found: {user.username}")
+                    # Обновляем имя и фамилию если они переданы
+                    if first_name:
+                        user.first_name = first_name
+                    if last_name:
+                        user.last_name = last_name
+                    if first_name or last_name:
+                        user.save()
+                else:
+                    # Создаем нового пользователя
+                    username = f"user_{email.split('@')[0]}"
+                    base_username = username
+                    suffix = 1
+                    while User.objects.filter(username=username).exists():
+                        suffix += 1
+                        username = f"{base_username}_{suffix}"
+                    user = User.objects.create_user(
+                        username=username,
+                        email=email,
+                        password='dummy_password_for_email_user',  # безопасная заглушка
+                        first_name=first_name or '',
+                        last_name=last_name or '',
+                    )
+                    is_new = True
+                    logger.info(f"New user created: {username}")
+            except Exception as e:
+                logger.error(f"Database error during user lookup/creation: {str(e)}")
+                return Response({'error': f'Database error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            try:
+                from rest_framework_simplejwt.tokens import RefreshToken
+                refresh = RefreshToken.for_user(user)
+                
+                logger.info(f"Tokens generated successfully for user: {user.username}")
+
+                return Response({
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                    'user': {
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email,
+                        'phone_number': user.phone_number,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name,
+                    },
+                    'isNewUser': is_new
+                }, status=status.HTTP_201_CREATED if is_new else status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f"Token generation error for user {user.username}: {str(e)}")
+                return Response({'error': f'Token generation error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+        except Exception as e:
+            logger.error(f"Unexpected error in email verification: {str(e)}")
+            return Response({'error': f'Internal server error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 # Delete account view
 class DeleteAccountView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]

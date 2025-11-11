@@ -7,6 +7,7 @@ from .views import (
     FlexibleTokenObtainPairView,
     SmsRequestCodeView,
     SmsVerifyCodeView,
+    EmailVerifyView,
     SocialLoginStubView,
     FirebasePhoneLoginView,
     DeleteAccountView,
@@ -50,6 +51,8 @@ urlpatterns = [
     # SMS authentication
     path('auth/sms/send/', SmsRequestCodeView.as_view(), name='auth-sms-send'),
     path('auth/sms/verify/', SmsVerifyCodeView.as_view(), name='auth-sms-verify'),
+    # Email authentication
+    path('auth/email/verify/', EmailVerifyView.as_view(), name='auth-email-verify'),
     # Social authentication
     path('auth/google/', SocialLoginStubView.as_view(), name='auth-google'),
     path('auth/social/<str:provider>/', SocialLoginStubView.as_view(), name='auth-social-stub'),
